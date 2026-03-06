@@ -18,17 +18,17 @@ const MessageSchema = new mongoose.Schema(
     type: {
       type: String,
       enum: ["text", "image", "audio", "video"],
-      required: true,
+      default: "text",
     },
 
     content: {
-      type: String,
+      type: String, // text or file URL 
       required: true,
     },
 
     tokenCount: {
       type: Number,
-      required: true,
+      default: 0,
     },
 
     mimeType: {
@@ -39,16 +39,15 @@ const MessageSchema = new mongoose.Schema(
       type: Number, // for audio/video (seconds)
     },
 
-    metadata: {
-      type: mongoose.Schema.Types.Mixed,
-    },
-
     isSummarized: {
       type: Boolean,
       default: false,
+      index: true,
     },
   },
   { timestamps: true }
 );
+
+MessageSchema.index({ sessionId: 1, createdAt: 1 });
 
 export default mongoose.models.Message || mongoose.model("Message", MessageSchema);

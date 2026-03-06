@@ -1,5 +1,11 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import SessionWrapper from "@/components/SessionWrapper";
+
+import { DM_Sans, Syne } from 'next/font/google'
+
+const dmSans = DM_Sans({ subsets: ['latin'], variable: '--font-dm-sans' })
+const syne = Syne({ subsets: ['latin'], variable: '--font-syne' })
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,11 +24,13 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${dmSans.variable} ${syne.variable}`}>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <SessionWrapper>
+          {children}
+        </SessionWrapper>
       </body>
     </html>
   );

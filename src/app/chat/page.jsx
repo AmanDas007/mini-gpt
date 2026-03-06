@@ -1,168 +1,239 @@
 "use client";
 
-import { useState } from "react";
-import { Menu, Plus, MessageSquare, User, X, Send, Bot, Sparkles } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Menu, Plus, MessageSquare, User, X, Send, Bot, Sparkles, LogOut, Settings } from "lucide-react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
 export default function ChatPage() {
-  const [isSidebarOpen, setSidebarOpen] = useState(true);
+  // Auth & Routing
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  // Chat States
+  const [menuOpen, setMenuOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
+  const [isThinking, setIsThinking] = useState(false);
+  const messagesEndRef = useRef(null);
 
-  const handleSend = () => {
+  // Authentication Check
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/login");
+    }
+  }, [status, router]);
+
+  // Auto-scroll
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isThinking]);
+
+  // --- UPDATED HANDLESEND LOGIC FOR STREAMING BACKEND ---
+  const handleSend = async () => {
     if (!message.trim()) return;
 
-    setMessages((prev) => [
-      ...prev,
-      { role: "user", content: message },
-    ]);
+    const currentMessage = message;
 
+    // 1. Instantly show user message and clear input
+    setMessages((prev) => [...prev, { role: "user", content: currentMessage }]);
     setMessage("");
+    setIsThinking(true); // Show the "Thinking..." liquid animation
 
-    // Dummy AI reply
-    setTimeout(() => {
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: "I'm your Mini-GPT assistant. How can I help you build your project today?" },
-      ]);
-    }, 800);
+    try {
+      // 2. Call your backend API
+      const response = await fetch("/api/chat/on-send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: currentMessage,
+          userId: session.user.id,
+        }),
+      });
+
+      // Handle Daily Limit from backend
+      if (!response.ok) {
+        setIsThinking(false);
+        if (response.status === 403) {
+           setMessages((prev) => [...prev, { role: "assistant", content: "⚠️ Daily limit reached. Please try again tomorrow or upgrade your plan." }]);
+           return;
+        }
+        throw new Error("Failed to fetch response");
+      }
+
+      // 3. Remove thinking animation and prepare empty assistant bubble
+      setIsThinking(false);
+      setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+
+      // 4. Read the streamed response chunk by chunk
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let done = false;
+      let text = "";
+
+      while (!done) {
+        const { value, done: readerDone } = await reader.read();
+        done = readerDone;
+        
+        if (value) {
+          const chunk = decoder.decode(value, { stream: true });
+          text += chunk;
+          
+          // Update the very last message in the array with the new text chunk
+          setMessages((prev) => {
+            const updatedMessages = [...prev];
+            updatedMessages[updatedMessages.length - 1].content = text;
+            return updatedMessages;
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Chat error:", error);
+      setIsThinking(false);
+      setMessages((prev) => [...prev, { role: "assistant", content: "Sorry, I encountered an error connecting to the server. Please try again." }]);
+    }
   };
 
+  // --- LOADING STATE (3-Layer Rotator) ---
+  if (status === "loading") {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-[#0d0d0f] font-['DM_Sans']">
+        <div className="relative w-24 h-24 flex items-center justify-center animate-in fade-in duration-500">
+          <div className="absolute inset-0 rounded-full border-[3px] border-white/5 border-t-indigo-500 animate-[spin_1.5s_linear_infinite]"></div>
+          <div className="absolute inset-3 rounded-full border-[3px] border-white/5 border-l-purple-500 border-b-purple-500 animate-[spin_2s_linear_infinite_reverse]"></div>
+          <div className="absolute inset-6 rounded-full border-[3px] border-white/5 border-r-indigo-400 animate-[spin_1s_linear_infinite]"></div>
+          <div className="absolute inset-0 bg-indigo-500/10 rounded-full blur-xl animate-pulse"></div>
+          <Sparkles size={20} className="text-white relative z-10 animate-pulse" />
+        </div>
+      </div>
+    );
+  }
+
+  // Prevent flash of UI if unauthenticated (wait for redirect)
+  if (status === "unauthenticated") {
+    return null; 
+  }
+
+  // --- MAIN AUTHENTICATED UI (Untouched) ---
   return (
-    <div className="flex h-screen bg-[#0b0e14] text-gray-100">
-      
-      {/* Sidebar */}
-      <aside
-        className={`${isSidebarOpen ? "w-72" : "w-0"} 
-        bg-[#0d1117] border-r border-gray-800 transition-all duration-300 
-        overflow-hidden flex flex-col`}
-      >
-        <div className="p-4">
-          <button className="w-full flex items-center justify-center gap-2 bg-[#161b22] border border-gray-700 rounded-xl p-3 hover:bg-[#1c2128] hover:border-gray-600 transition-all font-medium text-sm">
-            <Plus className="w-4 h-4" /> New Chat
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-3 space-y-1">
-          <p className="px-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 mt-4">Recent Chats</p>
-          {["Mini-GPT project ideas", "Next.js Help", "MongoDB Connection"].map(
-            (session, i) => (
-              <button
-                key={i}
-                className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-[#161b22] text-sm text-gray-400 hover:text-white transition-colors text-left group"
-              >
-                <MessageSquare className="w-4 h-4 text-gray-600 group-hover:text-blue-500" /> 
-                <span className="truncate">{session}</span>
-              </button>
-            )
-          )}
-        </div>
-
-        {/* User Profile Section */}
-        <div className="p-4 border-t border-gray-800">
-          <Link
-            href="/settings"
-            className="flex items-center gap-3 p-3 rounded-xl hover:bg-[#161b22] transition-all border border-transparent hover:border-gray-700"
-          >
-            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-600 to-purple-600 flex items-center justify-center shadow-lg">
-              <User className="w-5 h-5 text-white" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-semibold">My Account</span>
-              <span className="text-[10px] text-gray-500">Free Plan</span>
-            </div>
-          </Link>
-        </div>
-      </aside>
-
+    <div className="flex h-screen bg-[#0d0d0f] font-['DM_Sans'] text-gray-200 selection:bg-indigo-500/30">
+    
       {/* Main Chat Area */}
-      <main className="flex-1 flex flex-col relative h-full overflow-hidden bg-[#0b0e14]">
-
-        {/* Header */}
-        <header className="p-4 flex items-center justify-between border-b border-gray-800 bg-[#0b0e14]/80 backdrop-blur-md sticky top-0 z-10">
-          <div className="flex items-center">
-            <button
-              onClick={() => setSidebarOpen(!isSidebarOpen)}
-              className="p-2 hover:bg-[#161b22] rounded-lg transition-colors text-gray-400 hover:text-white"
-            >
-              {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
-            </button>
-            <div className="ml-4 flex items-center gap-2">
-               <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center">
-                  <Bot size={14} className="text-white" />
-               </div>
-               <span className="font-bold text-sm tracking-tight">Mini GPT <span className="text-[10px] bg-gray-800 px-1.5 py-0.5 rounded ml-1 text-gray-400">v1.0</span></span>
+      <main className="flex-1 flex flex-col relative h-full overflow-hidden bg-[#0d0d0f]">
+        
+        {/* Floating Glassmorphic Header */}
+        <nav className="flex items-center justify-between px-5 py-3.5 border-b border-white/5 bg-[#0d0d0f]/70 backdrop-blur-xl sticky top-0 z-50 transition-all duration-500">
+          <div className="flex items-center gap-3 group cursor-pointer">
+            <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-900/40 group-hover:shadow-indigo-500/30 group-hover:scale-105 transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)]">
+              <Sparkles size={18} className="text-white group-hover:rotate-12 transition-transform duration-500" />
             </div>
+            <span className="font-['Syne'] text-white text-xl font-bold tracking-tight opacity-90 group-hover:opacity-100 transition-opacity">Mini-GPT</span>
           </div>
-          <Sparkles className="w-5 h-5 text-gray-600 hover:text-yellow-500 cursor-pointer transition-colors" />
-        </header>
+
+          <div className="flex items-center gap-4 relative">
+            <div className="w-9 h-9 rounded-full overflow-hidden ring-2 ring-white/10 hover:ring-indigo-500/50 hover:scale-105 transition-all duration-300 cursor-pointer ease-[cubic-bezier(0.23,1,0.32,1)]">
+              <img src="https://api.dicebear.com/7.x/thumbs/svg?seed=MiniUser&backgroundColor=6366f1" alt="User" className="w-full h-full object-cover"/>
+            </div>
+            <button 
+              onClick={() => setMenuOpen(!menuOpen)} 
+              className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-400 hover:text-white hover:bg-white/10 active:scale-90 transition-all duration-300"
+            >
+               <Menu size={18} className={menuOpen ? "rotate-90 transition-transform duration-300" : "transition-transform duration-300"} />
+            </button>
+            
+            {/* Framer-style Popover Menu */}
+            {menuOpen && (
+              <div className="absolute right-0 top-14 w-52 bg-[#18181f]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] overflow-hidden z-50 animate-in fade-in zoom-in-[0.95] slide-in-from-top-2 origin-top-right duration-200 ease-out p-1">
+                <Link href="/settings" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-300 hover:bg-indigo-500/10 hover:text-indigo-300 active:scale-[0.98] transition-all">
+                  <Settings size={16} /> Go to Settings
+                </Link>
+                <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent my-1"></div>
+                <button onClick={() => {setMessages([]); setMenuOpen(false);}} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-300 hover:bg-rose-500/10 hover:text-rose-400 active:scale-[0.98] transition-all">
+                  <X size={16} /> Clear Chat
+                </button>
+              </div>
+            )}
+          </div>
+        </nav>
 
         {/* Messages List */}
-        <div className="flex-1 overflow-y-auto pt-10 pb-32">
-          {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center px-4">
-               <div className="w-16 h-16 bg-[#161b22] border border-gray-800 rounded-2xl flex items-center justify-center mb-6 shadow-xl">
-                  <Bot size={32} className="text-blue-500" />
-               </div>
-               <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
-                 How can I help you today?
-               </h2>
-               <p className="text-gray-500 max-w-sm">Ask me to write code, summarize text, or brainstorm ideas for your Mini-GPT project.</p>
+        <div className="flex-1 overflow-y-auto px-4 py-8 space-y-6 scroll-smooth">
+          {messages.length === 0 && !isThinking ? (
+            <div className="flex justify-center mt-12 animate-in fade-in slide-in-from-bottom-8 duration-700 ease-[cubic-bezier(0.23,1,0.32,1)]">
+              <div className="text-center max-w-sm group">
+                <div className="w-14 h-14 mx-auto mb-5 rounded-3xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-2xl shadow-indigo-900/40 group-hover:scale-110 group-hover:-translate-y-1 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]">
+                  <Sparkles size={28} className="text-white group-hover:rotate-12 transition-transform duration-500" />
+                </div>
+                <p className="font-['Syne'] text-white text-2xl font-bold tracking-tight">How can I help?</p>
+                <p className="text-gray-500 text-sm mt-2 font-medium">Ask me anything. I'm Mini-GPT.</p>
+              </div>
             </div>
           ) : (
-            <div className="space-y-8">
+            <div className="space-y-6 pb-24">
               {messages.map((msg, index) => (
-                <div
-                  key={index}
-                  className={`w-full py-6 ${msg.role === "assistant" ? "bg-[#161b22]/30 border-y border-gray-800/50" : ""}`}
-                >
-                  <div className="max-w-3xl mx-auto px-4 md:px-0 flex gap-4 md:gap-6">
-                    <div className={`w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center ${
-                      msg.role === "user" ? "bg-gray-700" : "bg-blue-600 shadow-lg shadow-blue-900/20"
-                    }`}>
-                      {msg.role === "user" ? <User size={16} /> : <Bot size={16} />}
-                    </div>
-                    <div className="flex-1 space-y-2 leading-relaxed text-gray-200">
-                      <p className="font-bold text-xs text-gray-500 uppercase tracking-wider">
-                        {msg.role === "user" ? "You" : "Mini GPT"}
-                      </p>
-                      <div className="prose prose-invert max-w-none text-sm md:text-base">
-                        {msg.content}
-                      </div>
-                    </div>
+                <div key={index} className={`flex gap-4 max-w-3xl mx-auto ${msg.role === 'assistant' ? 'flex-row-reverse' : ''} animate-in fade-in slide-in-from-bottom-4 duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]`}>
+                  <div className={`w-8 h-8 rounded-full overflow-hidden flex-shrink-0 mt-1 flex items-center justify-center shadow-md ${msg.role === 'assistant' ? 'bg-gradient-to-br from-indigo-500 to-purple-600 shadow-indigo-500/20' : 'ring-2 ring-white/10'}`}>
+                    {msg.role === 'assistant' ? <Sparkles size={14} className="text-white"/> : <img src="https://api.dicebear.com/7.x/thumbs/svg?seed=MiniUser&backgroundColor=6366f1" className="w-full h-full object-cover"/>}
+                  </div>
+                  {/* Framer-style Springy Bubbles */}
+                  <div className={`px-5 py-3.5 text-[15px] leading-relaxed max-w-[85%] shadow-sm hover:shadow-md transition-all duration-300 ${
+                    msg.role === 'assistant' 
+                      ? 'bg-gradient-to-br from-indigo-600/10 to-purple-600/10 border border-indigo-500/20 rounded-2xl rounded-tr-sm text-gray-200 hover:border-indigo-500/40' 
+                      : 'bg-[#17171e] border border-white/5 rounded-2xl rounded-tl-sm text-gray-200 hover:bg-[#1a1a24]'
+                  }`}>
+                    {msg.content}
                   </div>
                 </div>
               ))}
+
+              {/* Framer-style Liquid Typing Indicator */}
+              {isThinking && (
+                <div className="flex gap-4 max-w-3xl mx-auto flex-row-reverse animate-in fade-in slide-in-from-bottom-4 duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex-shrink-0 mt-1 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                    <Sparkles size={14} className="text-white animate-pulse"/>
+                  </div>
+                  <div className="bg-[#17171e] border border-white/5 rounded-2xl rounded-tr-sm px-5 py-4 flex items-center gap-1.5 shadow-sm">
+                    <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-[bounce_1s_infinite_0ms]"></span>
+                    <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-[bounce_1s_infinite_150ms]"></span>
+                    <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-[bounce_1s_infinite_300ms]"></span>
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} className="h-4" />
             </div>
           )}
         </div>
 
-        {/* Sticky Input Field */}
-        <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-[#0b0e14] via-[#0b0e14] to-transparent pt-10 pb-6 px-4">
+        {/* Framer-style Floating Input Area */}
+        <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-[#0d0d0f] via-[#0d0d0f] to-transparent pt-12 pb-6 px-4">
           <div className="max-w-3xl mx-auto relative group">
-            <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl blur opacity-20 group-focus-within:opacity-40 transition duration-1000"></div>
-            <div className="relative">
-              <input
+            {/* Animated Glow Behind Input */}
+            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-3xl blur opacity-0 group-focus-within:opacity-20 transition duration-700 ease-[cubic-bezier(0.23,1,0.32,1)]"></div>
+            
+            <div className="relative flex items-end gap-3 bg-[#17171e]/90 backdrop-blur-xl border border-white/10 rounded-2xl p-2 shadow-2xl group-focus-within:-translate-y-1 group-focus-within:border-indigo-500/30 group-focus-within:shadow-indigo-500/10 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]">
+              <textarea
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                className="w-full bg-[#161b22] border border-gray-700 rounded-2xl py-4 pl-5 pr-14 shadow-2xl focus:outline-none focus:border-gray-500 text-gray-100 placeholder-gray-500 transition-all"
+                onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), handleSend())}
+                disabled={isThinking}
+                rows={1}
+                className="flex-1 bg-transparent text-[15px] text-gray-200 placeholder-gray-500 resize-none leading-relaxed focus:outline-none max-h-40 disabled:opacity-50 py-3 pl-4"
                 placeholder="Message Mini-GPT..."
               />
               <button
                 onClick={handleSend}
-                disabled={!message.trim()}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-white text-black rounded-xl hover:bg-gray-200 disabled:bg-gray-800 disabled:text-gray-600 transition-all shadow-lg"
+                disabled={!message.trim() || isThinking}
+                className="w-10 h-10 mb-1 flex-shrink-0 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-white/5 disabled:text-gray-500 flex items-center justify-center active:scale-90 hover:scale-105 transition-all duration-300 shadow-md shadow-indigo-900/40 text-white"
               >
-                <Send className="w-5 h-5" />
+                <Send size={16} className="ml-0.5" />
               </button>
             </div>
-            <p className="text-center text-[10px] text-gray-600 mt-3">
-              Mini GPT can make mistakes. Check important info.
-            </p>
+            <p className="text-center text-gray-600 text-xs mt-3 font-medium opacity-70">Mini-GPT can make mistakes. Use with care.</p>
           </div>
         </div>
-
       </main>
     </div>
   );

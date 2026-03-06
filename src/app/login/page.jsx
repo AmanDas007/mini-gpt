@@ -37,7 +37,7 @@ export default function SigninPage() {
     } else {
       setMessage("Login successful! Redirecting...");
       setTimeout(() => {
-        router.push("/pricing");
+        router.push("/chat");
       }, 1000);
     }
   };
@@ -47,7 +47,7 @@ export default function SigninPage() {
     setLoading(true);
     setError(null);
     setMessage("Redirecting...");
-    await signIn(provider, { callbackUrl: "/pricing" });
+    await signIn(provider, { callbackUrl: "/chat" });
   };
 
   return (

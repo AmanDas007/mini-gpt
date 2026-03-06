@@ -1,96 +1,171 @@
 "use client";
 
-import { CreditCard, LogOut, Shield, Palette, ArrowLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, Sparkles, KeyRound, LogOut, Sun, Moon, Monitor, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { signOut } from "next-auth/react";
+import { useState } from "react";
 
 export default function SettingsPage() {
-  const options = [
-    {
-      icon: CreditCard,
-      label: "Manage Subscription",
-      desc: "View billing and upgrade plans",
-      href: "/pricing",
-      color: "text-blue-500",
-      bg: "bg-blue-500/10",
-    },
-    {
-      icon: Shield,
-      label: "Account Security",
-      desc: "Change password and enable 2FA",
-      href: "/security",
-      color: "text-green-500",
-      bg: "bg-green-500/10",
-    },
-    {
-      icon: Palette,
-      label: "Theme Customization",
-      desc: "Light, Dark, and System modes",
-      href: "/theme",
-      color: "text-purple-500",
-      bg: "bg-purple-500/10",
-    },
-  ];
+  const [theme, setTheme] = useState("dark");
+  const [compact, setCompact] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[#0b0e14] text-gray-100 flex items-center justify-center p-4">
-      <div className="max-w-2xl w-full bg-[#161b22] rounded-2xl border border-gray-800 shadow-2xl p-6 md:p-8">
-        
-        {/* Back Button */}
-        <Link
-          href="/chat"
-          className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-8 transition-colors group"
+    <div className="flex-col min-h-screen bg-[#0d0d0f] font-['DM_Sans'] text-gray-200 flex selection:bg-indigo-500/30">
+      
+      {/* Floating Glassmorphic Nav */}
+      <nav className="flex items-center gap-4 px-5 py-3.5 border-b border-white/5 bg-[#0d0d0f]/70 backdrop-blur-xl sticky top-0 z-50 transition-all duration-500">
+        <Link 
+          href="/chat" 
+          className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-400 hover:text-white hover:bg-white/10 active:scale-90 transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)]"
         >
-          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-          <span className="text-sm font-medium">Back to Chat</span>
+          <ArrowLeft size={18} />
         </Link>
-
-        <header className="mb-10">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-            Profile Settings
-          </h1>
-          <p className="text-gray-500 mt-2">Manage your account preferences and subscription</p>
-        </header>
-
-        <div className="space-y-4">
-          {/* Settings Options */}
-          {options.map((opt) => {
-            const Icon = opt.icon;
-
-            return (
-              <Link
-                key={opt.label}
-                href={opt.href}
-                className="w-full flex items-center justify-between p-4 rounded-xl bg-[#0d1117] border border-gray-800 hover:border-gray-600 hover:bg-[#1c2128] transition-all group"
-              >
-                <div className="flex items-center gap-4">
-                  <div className={`p-2.5 rounded-lg ${opt.bg} ${opt.color}`}>
-                    <Icon className="w-5 h-5" />
-                  </div>
-                  <div className="text-left">
-                    <p className="font-semibold text-gray-200 group-hover:text-white transition-colors">
-                      {opt.label}
-                    </p>
-                    <p className="text-sm text-gray-500">{opt.desc}</p>
-                  </div>
-                </div>
-                <ChevronRight className="w-5 h-5 text-gray-600 group-hover:text-gray-300 transition-colors" />
-              </Link>
-            );
-          })}
-
-          <div className="pt-4 mt-6 border-t border-gray-800">
-            {/* Logout Button */}
-            <button
-              onClick={() => signOut({ callbackUrl: "/auth/signin" })}
-              className="w-full flex items-center justify-center gap-3 p-4 rounded-xl bg-red-500/5 border border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white transition-all duration-300 font-semibold"
-            >
-              <LogOut className="w-5 h-5" />
-              <span>Log Out</span>
-            </button>
+        <div className="flex items-center gap-3 group cursor-pointer">
+          <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-900/40 group-hover:shadow-indigo-500/30 group-hover:scale-105 transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)]">
+            <Sparkles size={16} className="text-white group-hover:rotate-12 transition-transform duration-500" />
           </div>
+          <span className="font-['Syne'] text-white text-xl font-bold tracking-tight opacity-90 group-hover:opacity-100 transition-opacity">Mini-GPT</span>
+        </div>
+        <span className="text-gray-500 text-sm font-medium ml-1">/ Settings</span>
+      </nav>
+
+      <div className="flex-1 overflow-y-auto px-4 py-8 scroll-smooth">
+        <div className="max-w-lg mx-auto space-y-8">
+          
+          {/* Profile card - Animated In */}
+          <div className="flex items-center gap-4 bg-[#17171e]/80 backdrop-blur-md border border-white/5 hover:border-white/10 rounded-3xl px-5 py-5 shadow-lg hover:shadow-indigo-500/5 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] animate-in fade-in slide-in-from-bottom-4">
+            <div className="w-14 h-14 rounded-full overflow-hidden ring-2 ring-indigo-500/30 hover:ring-indigo-500/60 hover:scale-105 transition-all duration-300 cursor-pointer ease-[cubic-bezier(0.23,1,0.32,1)]">
+              <img src="https://api.dicebear.com/7.x/thumbs/svg?seed=MiniUser&backgroundColor=6366f1" className="w-full h-full object-cover"/>
+            </div>
+            <div className="flex-1">
+              <p className="text-white font-bold text-base tracking-wide">Mini User</p>
+              <p className="text-indigo-400 text-sm mt-0.5 font-medium">mini@example.com</p>
+            </div>
+            <div className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-gray-400 font-medium">Free Plan</div>
+          </div>
+
+          {/* Account Section */}
+          <div className="animate-in fade-in slide-in-from-bottom-6 duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] delay-75 fill-mode-both">
+            <p className="text-gray-500 text-xs uppercase tracking-widest font-bold px-2 mb-3">Account</p>
+            <div className="bg-[#17171e] border border-white/5 rounded-3xl overflow-hidden divide-y divide-white/5 shadow-sm">
+              
+              <button className="w-full flex items-center gap-4 px-5 py-4 hover:bg-white/5 active:bg-white/10 transition-all duration-200 group">
+                <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center flex-shrink-0 group-hover:bg-indigo-500/20 group-hover:scale-105 transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)]">
+                  <KeyRound size={18} className="text-indigo-400" />
+                </div>
+                <div className="text-left flex-1">
+                  <p className="text-gray-200 text-sm font-semibold group-hover:text-white transition-colors">Forgot Password</p>
+                  <p className="text-gray-500 text-xs mt-0.5 group-hover:text-gray-400 transition-colors">Send a reset link to your email</p>
+                </div>
+              </button>
+              
+              <button className="w-full flex items-center gap-4 px-5 py-4 hover:bg-white/5 active:bg-white/10 transition-all duration-200 group">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center flex-shrink-0 group-hover:bg-amber-500/20 group-hover:scale-105 transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)]">
+                  <LogOut size={18} className="text-amber-400" />
+                </div>
+                <div className="text-left flex-1">
+                  <p className="text-gray-200 text-sm font-semibold group-hover:text-white transition-colors">Logout</p>
+                  <p className="text-gray-500 text-xs mt-0.5 group-hover:text-gray-400 transition-colors">Sign out of your account</p>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {/* Theme Section */}
+          <div className="animate-in fade-in slide-in-from-bottom-8 duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] delay-150 fill-mode-both">
+            <p className="text-gray-500 text-xs uppercase tracking-widest font-bold px-2 mb-3">Preferences</p>
+            <div className="bg-[#17171e] border border-white/5 rounded-3xl overflow-hidden divide-y divide-white/5 shadow-sm">
+              <div className="px-5 py-5">
+                <p className="text-gray-200 text-sm font-semibold mb-4">Appearance</p>
+                <div className="flex gap-3">
+                  {[
+                    { id: 'dark', icon: Moon, label: 'Dark' },
+                    { id: 'light', icon: Sun, label: 'Light' },
+                    { id: 'system', icon: Monitor, label: 'System' }
+                  ].map((t) => (
+                    <button 
+                      key={t.id}
+                      onClick={() => setTheme(t.id)}
+                      className={`flex-1 flex flex-col items-center gap-2 p-3.5 rounded-2xl border-2 active:scale-95 transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] ${
+                        theme === t.id 
+                          ? 'border-indigo-500 bg-indigo-500/10 shadow-lg shadow-indigo-500/10' 
+                          : 'border-white/5 hover:border-white/15 bg-white/5'
+                      }`}
+                    >
+                      <t.icon size={20} className={theme === t.id ? 'text-indigo-400' : 'text-gray-400'} />
+                      <span className={`text-xs font-semibold ${theme === t.id ? 'text-indigo-400' : 'text-gray-500'}`}>{t.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between px-5 py-5 hover:bg-white/[0.02] transition-colors">
+                <div>
+                  <p className="text-gray-200 text-sm font-semibold">Compact Mode</p>
+                  <p className="text-gray-500 text-xs mt-0.5">Reduce spacing in chat interface</p>
+                </div>
+                {/* Spring-animated Toggle Switch */}
+                <button 
+                  onClick={() => setCompact(!compact)}
+                  className={`w-12 h-6 rounded-full relative transition-colors duration-300 active:scale-95 ${compact ? 'bg-indigo-600' : 'bg-[#2a2a35] border border-white/5'}`}
+                >
+                  <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow-md transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${compact ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Danger Zone */}
+          <div className="animate-in fade-in slide-in-from-bottom-10 duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] delay-200 fill-mode-both">
+            <p className="text-rose-500/80 text-xs uppercase tracking-widest font-bold px-2 mb-3">Danger Zone</p>
+            <div className="bg-[#17171e] border border-rose-500/20 rounded-3xl overflow-hidden shadow-sm hover:shadow-rose-500/5 transition-all duration-300">
+              <div className="px-5 py-5 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center flex-shrink-0">
+                  <Trash2 size={18} className="text-rose-400" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-gray-200 text-sm font-semibold">Delete Account</p>
+                  <p className="text-gray-500 text-xs mt-0.5">Permanently remove your account and all data.</p>
+                </div>
+              </div>
+              <div className="px-5 pb-5">
+                <button 
+                  onClick={() => setShowDeleteModal(true)} 
+                  className="w-full py-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm font-bold hover:bg-rose-500 hover:text-white active:scale-[0.98] transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)]"
+                >
+                  Delete My Account
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <p className="text-center text-gray-700 text-xs pb-6 font-medium animate-in fade-in delay-300">Mini-GPT · v1.0.0</p>
         </div>
       </div>
+
+      {/* Glassmorphic Spring-Animated Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[100] flex items-center justify-center px-4 animate-in fade-in duration-300">
+          <div className="bg-[#18181f]/95 border border-white/10 rounded-3xl w-full max-w-sm p-7 shadow-[0_8px_40px_rgb(0,0,0,0.6)] animate-in zoom-in-[0.90] slide-in-from-bottom-4 duration-400 ease-[cubic-bezier(0.23,1,0.32,1)]">
+            <div className="w-14 h-14 mx-auto mb-5 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center shadow-inner">
+              <Trash2 size={24} className="text-rose-400" />
+            </div>
+            <h3 className="font-['Syne'] text-white text-xl font-bold text-center">Delete Account?</h3>
+            <p className="text-gray-400 text-sm text-center mt-2.5 leading-relaxed font-medium">This will permanently delete your account. This action cannot be reversed.</p>
+            <div className="flex gap-3 mt-8">
+              <button 
+                onClick={() => setShowDeleteModal(false)} 
+                className="flex-1 py-3 rounded-2xl bg-white/5 border border-white/10 text-gray-300 text-sm font-bold hover:bg-white/10 active:scale-95 transition-all duration-200"
+              >
+                Cancel
+              </button>
+              <button className="flex-1 py-3 rounded-2xl bg-rose-600 text-white text-sm font-bold hover:bg-rose-500 active:scale-95 shadow-lg shadow-rose-900/40 transition-all duration-200">
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

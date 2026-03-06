@@ -3,20 +3,36 @@ import mongoose from "mongoose";
 const ChatSessionSchema = new mongoose.Schema(
   {
     userId: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
       required: true,
       index: true,
     },
 
-    totalSessionTokens: {
+    // title: {
+    //   type: String,
+    //   default: "New Chat",
+    // },
+
+    runningSummary: {
+      type: String,
+      default: "",
+    },
+
+    runningSummaryTokens: {
       type: Number,
       default: 0,
     },
 
-    unsummarizedTokenSum: {
+    totalSessionTokensPerDay: {
       type: Number,
       default: 0,
     },
+
+    // unsummarizedTokenSum: {
+    //   type: Number,
+    //   default: 0,
+    // },
 
     imageCount: {
       type: Number,
@@ -36,10 +52,12 @@ const ChatSessionSchema = new mongoose.Schema(
     // Optional: limit media generation within 24 hrs
     mediaResetAt: {
       type: Date,
+      default: null,
     },
   },
   { timestamps: true }
 );
 
-// Prevent model overwrite in Next.js hot reload
+ChatSessionSchema.index({ userId: 1, createdAt: -1 });
+
 export default mongoose.models.ChatSession || mongoose.model("ChatSession", ChatSessionSchema);

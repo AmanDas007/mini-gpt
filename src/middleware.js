@@ -1,9 +1,3 @@
-// export { default } from "next-auth/middleware";
-
-// export const config = {
-//   matcher: ["/pricing", "/chat", "/settings"],
-// };
-
 import { withAuth } from "next-auth/middleware";
 
 export default withAuth({

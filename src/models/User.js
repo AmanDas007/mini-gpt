@@ -4,13 +4,13 @@ const UserSchema = new mongoose.Schema(
   {
     name: {
       type: String,
-      required: true,
     },
 
     email: {
       type: String,
       required: true,
       unique: true,
+      index: true,
     },
 
     password: {
@@ -27,16 +27,16 @@ const UserSchema = new mongoose.Schema(
       default: ["credentials"]
     },
 
-    numberOfTokensUsed: {
+    totalTokenUsage: {
       type: Number,
       default: 0,
     },
 
-    plan: {
-      type: String,
-      enum: ["free", "pro"],
-      default: "free",
-    },
+    // plan: {
+    //   type: String,
+    //   enum: ["free", "pro"],
+    //   default: "free",
+    // },
   },
   { timestamps: true }
 );

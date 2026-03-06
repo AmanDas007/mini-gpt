@@ -3,10 +3,10 @@ import mongoose from "mongoose";
 const GlobalMemorySchema = new mongoose.Schema(
   {
     userId: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
       required: true,
       unique: true,
-      index: true,
     },
 
     summary: {

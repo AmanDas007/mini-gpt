@@ -44,7 +44,7 @@ export default function SignupPage() {
 
       // Redirect after 1.5s
       setTimeout(() => {
-        router.push("/pricing");
+        router.push("/chat");
       }, 1500);
     } catch (error) {
       setError(error.response?.data?.message || "Something went wrong. Please try again.");
