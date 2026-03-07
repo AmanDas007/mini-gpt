@@ -5,6 +5,8 @@ import { Menu, Plus, MessageSquare, User, X, Send, Bot, Sparkles, LogOut, Settin
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Spinner from "@/components/spinner";
+import { toast } from "react-hot-toast";
 
 export default function ChatPage() {
   // Auth & Routing
@@ -17,6 +19,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState([]);
   const [isThinking, setIsThinking] = useState(false);
   const messagesEndRef = useRef(null);
+  const [isClearing, setIsClearing] = useState(false);
 
   // Authentication Check
   useEffect(() => {
@@ -97,18 +100,42 @@ export default function ChatPage() {
     }
   };
 
+  const handleClearChat = async () => {
+    if (isClearing) return;
+  
+    const clearPromise = async () => {
+      setIsClearing(true);
+      const res = await fetch("/api/chat/delete-all", {
+        method: "POST", // Changed from GET to match your backend
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: session.user.id }),
+      });
+  
+      if (!res.ok) throw new Error("Failed to clear chats");
+      
+      setMessages([]);
+      setIsClearing(false);
+      return res;
+    };
+  
+    toast.promise(clearPromise(), {
+      loading: 'Clearing conversation...',
+      success: 'Chat history wiped! ✨',
+      error: 'Failed to clear chat. ❌',
+    }, {
+      style: {
+        background: '#18181f',
+        color: '#fff',
+        border: '1px solid rgba(255,255,255,0.1)',
+        borderRadius: '1rem',
+      }
+    });
+  };
+
   // --- LOADING STATE (3-Layer Rotator) ---
   if (status === "loading") {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-[#0d0d0f] font-['DM_Sans']">
-        <div className="relative w-24 h-24 flex items-center justify-center animate-in fade-in duration-500">
-          <div className="absolute inset-0 rounded-full border-[3px] border-white/5 border-t-indigo-500 animate-[spin_1.5s_linear_infinite]"></div>
-          <div className="absolute inset-3 rounded-full border-[3px] border-white/5 border-l-purple-500 border-b-purple-500 animate-[spin_2s_linear_infinite_reverse]"></div>
-          <div className="absolute inset-6 rounded-full border-[3px] border-white/5 border-r-indigo-400 animate-[spin_1s_linear_infinite]"></div>
-          <div className="absolute inset-0 bg-indigo-500/10 rounded-full blur-xl animate-pulse"></div>
-          <Sparkles size={20} className="text-white relative z-10 animate-pulse" />
-        </div>
-      </div>
+      <Spinner />
     );
   }
 
@@ -134,12 +161,12 @@ export default function ChatPage() {
           </div>
 
           <div className="flex items-center gap-4 relative">
-            <div className="w-9 h-9 rounded-full overflow-hidden ring-2 ring-white/10 hover:ring-indigo-500/50 hover:scale-105 transition-all duration-300 cursor-pointer ease-[cubic-bezier(0.23,1,0.32,1)]">
-              <img src="https://api.dicebear.com/7.x/thumbs/svg?seed=MiniUser&backgroundColor=6366f1" alt="User" className="w-full h-full object-cover"/>
+            <div className="w-9 h-9 rounded-full overflow-hidden ring-2 ring-white/10 hover:ring-indigo-500/50 hover:scale-105 transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)]">
+              <img src={session.user.image} alt="User" className="w-full h-full object-cover"/>
             </div>
             <button 
               onClick={() => setMenuOpen(!menuOpen)} 
-              className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-400 hover:text-white hover:bg-white/10 active:scale-90 transition-all duration-300"
+              className="cursor-pointer w-9 h-9 flex items-center justify-center rounded-xl text-gray-400 hover:text-white hover:bg-white/10 active:scale-90 transition-all duration-300"
             >
                <Menu size={18} className={menuOpen ? "rotate-90 transition-transform duration-300" : "transition-transform duration-300"} />
             </button>
@@ -151,7 +178,12 @@ export default function ChatPage() {
                   <Settings size={16} /> Go to Settings
                 </Link>
                 <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent my-1"></div>
-                <button onClick={() => {setMessages([]); setMenuOpen(false);}} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-300 hover:bg-rose-500/10 hover:text-rose-400 active:scale-[0.98] transition-all">
+                <button 
+                  onClick={() => {
+                    handleClearChat(); 
+                    setMenuOpen(false);}
+                  } 
+                  className="cursor-pointer w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-300 hover:bg-rose-500/10 hover:text-rose-400 active:scale-[0.98] transition-all">
                   <X size={16} /> Clear Chat
                 </button>
               </div>
@@ -176,7 +208,7 @@ export default function ChatPage() {
               {messages.map((msg, index) => (
                 <div key={index} className={`flex gap-4 max-w-3xl mx-auto ${msg.role === 'assistant' ? 'flex-row-reverse' : ''} animate-in fade-in slide-in-from-bottom-4 duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]`}>
                   <div className={`w-8 h-8 rounded-full overflow-hidden flex-shrink-0 mt-1 flex items-center justify-center shadow-md ${msg.role === 'assistant' ? 'bg-gradient-to-br from-indigo-500 to-purple-600 shadow-indigo-500/20' : 'ring-2 ring-white/10'}`}>
-                    {msg.role === 'assistant' ? <Sparkles size={14} className="text-white"/> : <img src="https://api.dicebear.com/7.x/thumbs/svg?seed=MiniUser&backgroundColor=6366f1" className="w-full h-full object-cover"/>}
+                    {msg.role === 'assistant' ? <Sparkles size={14} className="text-white"/> : <img src={session.user.image} className="w-full h-full object-cover"/>}
                   </div>
                   {/* Framer-style Springy Bubbles */}
                   <div className={`px-5 py-3.5 text-[15px] leading-relaxed max-w-[85%] shadow-sm hover:shadow-md transition-all duration-300 ${

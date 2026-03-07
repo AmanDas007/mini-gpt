@@ -1,6 +1,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import SessionWrapper from "@/components/SessionWrapper";
+import { Toaster } from "react-hot-toast";
 
 import { DM_Sans, Syne } from 'next/font/google'
 
@@ -30,6 +31,18 @@ export default function RootLayout({ children }) {
       >
         <SessionWrapper>
           {children}
+          <Toaster 
+            position="bottom-right"
+            toastOptions={{
+              style: {
+                background: '#18181f',
+                color: '#fff',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: '1rem',
+                fontSize: '14px',
+              },
+            }}
+          />
         </SessionWrapper>
       </body>
     </html>

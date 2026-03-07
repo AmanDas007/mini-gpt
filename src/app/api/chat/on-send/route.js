@@ -88,12 +88,10 @@ export async function POST(req) {
   const outsideTokenSum = unsummarized.reduce((s, m) => s + m.tokenCount, 0);
 
   const totalUnsummarized = session.runningSummaryTokens + outsideTokenSum;
-  console.log("hii")
 
-  console.log(totalUnsummarized)
+  // console.log(totalUnsummarized)
   // updating running summary
   if (totalUnsummarized > SUMMARIZATION_LIMIT && unsummarized.length) {
-    console.log("hello")
     const TOKEN_LIMIT = RUNNING_SUMMARY_MAX;
   
     // 2. Build the System Prompt (Instructional Layer)

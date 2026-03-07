@@ -32,11 +32,23 @@ export const authOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      authorization: {
+        params: {
+          prompt: "select_account", // This is the magic line
+          // access_type: "offline",   // Optional: useful for getting refresh tokens
+          // response_type: "code"
+        }
+      }
     }),
 
     GitHubProvider({
       clientId: process.env.GITHUB_CLIENT_ID,
       clientSecret: process.env.GITHUB_CLIENT_SECRET,
+      // authorization: {
+      //   params: {
+      //     prompt: "consent", // to show github page on every request
+      //   }
+      // }
     }),
   ],
 

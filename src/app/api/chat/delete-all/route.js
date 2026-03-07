@@ -1,5 +1,6 @@
-import connectDB from "@/lib/db";
-import { openai } from "@/lib/openai";
+import connectDB from "@/db/connectDB";
+// import { openai } from "@/lib/openai";
+import { groq } from "@/lib/groq";
 import { countTokens } from "@/lib/tokenizer";
 import { GLOBAL_SUMMARY_LIMIT } from "@/lib/limits";
 import Message from "@/models/Message";
@@ -85,13 +86,13 @@ export async function POST(req) {
     // return global?.summary || "";
   }
 
-  await Message.deleteMany({sessionId:session._id});
+  // await Message.deleteMany({sessionId:session._id});
 
-  session.runningSummary="";
-  session.runningSummaryTokens=0;
-  session.totalSessionTokensPerDay=0;
+  // session.runningSummary="";
+  // session.runningSummaryTokens=0;
+  // session.totalSessionTokensPerDay=0;
 
-  await session.save();
+  // await session.save();
 
-  return Response.json({success:true});
-}
+  return Response.json({ success:true });
+};

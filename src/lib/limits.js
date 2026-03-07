@@ -13,4 +13,4 @@ export const RUNNING_SUMMARY_MAX = 800;
 export const GLOBAL_SUMMARY_LIMIT = 1000; 
 
 // Safety cap to stay within Groq Free Tier daily limits
-export const SESSION_DAILY_LIMIT = 100000;
+export const SESSION_DAILY_LIMIT = 70000;
