@@ -8,6 +8,12 @@ import { useRouter } from "next/navigation";
 import Spinner from "@/components/spinner";
 import { toast } from "react-hot-toast";
 
+const PaginationSpinner = () => (
+  <div className="flex items-center justify-center py-4 animate-in fade-in duration-300">
+    <div className="w-5 h-5 border-2 border-white/10 border-t-white/80 rounded-full animate-spin"></div>
+  </div>
+);
+
 export default function ChatPage() {
   // Auth & Routing
   const { data: session, status } = useSession();
@@ -18,11 +24,62 @@ export default function ChatPage() {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
   const [isThinking, setIsThinking] = useState(false);
-  const messagesEndRef = useRef(null);
   const [isClearing, setIsClearing] = useState(false);
+  const [isLoadingInitial, setIsLoadingInitial] = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false); // For Pagination Spinner
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const messagesEndRef = useRef(null);
+  const scrollContainerRef = useRef(null);
+
+  const fetchMessages = async (pageNum) => {
+    if (!session?.user?.id) return;
+    
+    if (pageNum > 1) setIsFetchingMore(true);
+
+    try {
+      const res = await fetch(`/api/chat/get-messages?userId=${session.user.id}&page=${pageNum}`);
+      const data = await res.json();
+      
+      if (data.length < 20) setHasMore(false);
+
+      if (pageNum === 1) {
+        setMessages(data);
+        // Instant scroll for the first load
+        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "instant" }), 100);
+      } else {
+        // --- PREVENT SCROLL JUMP ---
+        const container = scrollContainerRef.current;
+        
+        // 1. Capture the exact scroll height BEFORE adding new messages
+        const scrollHeightBefore = container.scrollHeight;
+
+        // 2. Prepend the new messages
+        setMessages((prev) => [...data, ...prev]);
+
+        // 3. Use a micro-task to adjust scroll before the browser repaints
+        // This makes the transition invisible to the user
+        requestAnimationFrame(() => {
+          if (container) {
+            const scrollHeightAfter = container.scrollHeight;
+            // 4. Calculate the difference (how much height was added to the top)
+            const heightAdded = scrollHeightAfter - scrollHeightBefore;
+            // 5. Instantly move the scroll bar down by that exact amount
+            container.scrollTop = heightAdded;
+          }
+        });
+      }
+    } catch (err) {
+      console.error("Fetch error:", err);
+    } finally {
+      setIsLoadingInitial(false);
+      setIsFetchingMore(false);
+    }
+  };
 
   // Authentication Check
   useEffect(() => {
+    if (status === "authenticated") fetchMessages(1);
     if (status === "unauthenticated") {
       router.push("/login");
     }
@@ -30,8 +87,17 @@ export default function ChatPage() {
 
   // Auto-scroll
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (!isLoadingInitial && page === 1 && !isFetchingMore) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages, isThinking]);
+
+  const loadMore = () => {
+    if (isFetchingMore) return;
+    const nextPage = page + 1;
+    setPage(nextPage);
+    fetchMessages(nextPage);
+  };
 
   // --- UPDATED HANDLESEND LOGIC FOR STREAMING BACKEND ---
   const handleSend = async () => {
@@ -133,16 +199,23 @@ export default function ChatPage() {
   };
 
   // --- LOADING STATE (3-Layer Rotator) ---
-  if (status === "loading") {
+  // if (status === "loading") {
+  //   return (
+  //     <Spinner />
+  //   );
+  // }
+  if (status === "loading" || (status === "authenticated" && isLoadingInitial)) {
     return (
-      <Spinner />
+      <div className="h-screen bg-[#0d0d0f] flex items-center justify-center">
+        <Spinner /> 
+      </div>
     );
   }
 
   // Prevent flash of UI if unauthenticated (wait for redirect)
-  if (status === "unauthenticated") {
-    return null; 
-  }
+  // if (status === "unauthenticated") {
+  //   return null; 
+  // }
 
   // --- MAIN AUTHENTICATED UI (Untouched) ---
   return (
@@ -162,7 +235,13 @@ export default function ChatPage() {
 
           <div className="flex items-center gap-4 relative">
             <div className="w-9 h-9 rounded-full overflow-hidden ring-2 ring-white/10 hover:ring-indigo-500/50 hover:scale-105 transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)]">
-              <img src={session.user.image} alt="User" className="w-full h-full object-cover"/>
+              <img 
+                src={session.user.image} 
+                referrerPolicy="no-referrer" 
+                crossOrigin="anonymous" // Add this too for extra compatibility
+                alt="User" 
+                className="w-full h-full object-cover"
+              />
             </div>
             <button 
               onClick={() => setMenuOpen(!menuOpen)} 
@@ -192,7 +271,26 @@ export default function ChatPage() {
         </nav>
 
         {/* Messages List */}
-        <div className="flex-1 overflow-y-auto px-4 py-8 space-y-6 scroll-smooth">
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 py-8 space-y-6 scroll-smooth">
+          {/* --- 4. PAGINATION SECTION (Uses custom blackish-white spinner) --- */}
+          <div className="min-h-[50px] flex items-center justify-center">
+            {isFetchingMore ? (
+              <PaginationSpinner />
+            ) : (
+              hasMore && messages.length >= 20 && (
+                <button 
+                  onClick={() => {
+                    const nextPage = page + 1;
+                    setPage(nextPage);
+                    fetchMessages(nextPage);
+                  }} 
+                  className="cursor-pointer text-xs text-gray-500 hover:text-indigo-400 py-2 px-4 rounded-full border border-white/5 hover:bg-white/5 transition-all"
+                >
+                  Load older messages
+                </button>
+              )
+            )}
+          </div>
           {messages.length === 0 && !isThinking ? (
             <div className="flex justify-center mt-12 animate-in fade-in slide-in-from-bottom-8 duration-700 ease-[cubic-bezier(0.23,1,0.32,1)]">
               <div className="text-center max-w-sm group">
@@ -208,7 +306,7 @@ export default function ChatPage() {
               {messages.map((msg, index) => (
                 <div key={index} className={`flex gap-4 max-w-3xl mx-auto ${msg.role === 'assistant' ? 'flex-row-reverse' : ''} animate-in fade-in slide-in-from-bottom-4 duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]`}>
                   <div className={`w-8 h-8 rounded-full overflow-hidden flex-shrink-0 mt-1 flex items-center justify-center shadow-md ${msg.role === 'assistant' ? 'bg-gradient-to-br from-indigo-500 to-purple-600 shadow-indigo-500/20' : 'ring-2 ring-white/10'}`}>
-                    {msg.role === 'assistant' ? <Sparkles size={14} className="text-white"/> : <img src={session.user.image} className="w-full h-full object-cover"/>}
+                    {msg.role === 'assistant' ? <Sparkles size={14} className="text-white"/> : <img src={session.user.image} referrerPolicy="no-referrer" crossOrigin="anonymous" className="w-full h-full object-cover"/>}
                   </div>
                   {/* Framer-style Springy Bubbles */}
                   <div className={`px-5 py-3.5 text-[15px] leading-relaxed max-w-[85%] shadow-sm hover:shadow-md transition-all duration-300 ${
