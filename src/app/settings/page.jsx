@@ -176,7 +176,7 @@ export default function SettingsPage() {
           </div>
 
           {/* Theme Section */}
-          <div className="animate-in fade-in slide-in-from-bottom-8 duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] delay-150 fill-mode-both">
+          {/* <div className="animate-in fade-in slide-in-from-bottom-8 duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] delay-150 fill-mode-both">
             <p className="text-gray-500 text-xs uppercase tracking-widest font-bold px-2 mb-3">Preferences</p>
             <div className="bg-[#17171e] border border-white/5 rounded-3xl overflow-hidden divide-y divide-white/5 shadow-sm">
               <div className="px-5 py-5">
@@ -208,7 +208,6 @@ export default function SettingsPage() {
                   <p className="text-gray-200 text-sm font-semibold">Compact Mode</p>
                   <p className="text-gray-500 text-xs mt-0.5">Reduce spacing in chat interface</p>
                 </div>
-                {/* Spring-animated Toggle Switch */}
                 <button 
                   onClick={() => setCompact(!compact)}
                   className={`w-12 h-6 rounded-full relative transition-colors duration-300 active:scale-95 ${compact ? 'bg-indigo-600' : 'bg-[#2a2a35] border border-white/5'}`}
@@ -217,7 +216,7 @@ export default function SettingsPage() {
                 </button>
               </div>
             </div>
-          </div>
+          </div> */}
 
           {/* Danger Zone */}
           <div className="animate-in fade-in slide-in-from-bottom-10 duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] delay-200 fill-mode-both">

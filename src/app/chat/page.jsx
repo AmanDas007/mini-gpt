@@ -1,12 +1,51 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Menu, Plus, MessageSquare, User, X, Send, Bot, Sparkles, LogOut, Settings } from "lucide-react";
+import { Menu, Plus, MessageSquare, User, X, Send, Bot, Sparkles, LogOut, Settings, Copy, Check } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Spinner from "@/components/spinner";
 import { toast } from "react-hot-toast";
+
+// Markdown & Syntax Highlighting Imports
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+
+// --- CUSTOM CODE BLOCK COMPONENT ---
+const CodeBlock = ({ language, value }) => {
+  const [copied, setCopied] = useState(false);
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(value);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="relative group my-4 rounded-lg overflow-hidden border border-white/10">
+      <div className="flex items-center justify-between px-4 py-2 bg-[#1e1e2e] border-b border-white/5">
+        <span className="text-xs font-mono text-gray-400">{language || 'code'}</span>
+        <button 
+          onClick={copyToClipboard}
+          className="text-gray-400 hover:text-white transition-colors flex items-center gap-1.5"
+        >
+          {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
+          <span className="text-xs">{copied ? 'Copied!' : 'Copy'}</span>
+        </button>
+      </div>
+      <SyntaxHighlighter
+        language={language || 'text'}
+        style={vscDarkPlus}
+        customStyle={{ margin: 0, padding: '1.5rem', background: '#0d0d0f', fontSize: '13px' }}
+      >
+        {value}
+      </SyntaxHighlighter>
+    </div>
+  );
+};
 
 const PaginationSpinner = () => (
   <div className="flex items-center justify-center py-4 animate-in fade-in duration-300">
@@ -198,6 +237,13 @@ export default function ChatPage() {
     });
   };
 
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text);
+    toast.success("Message copied!", {
+      style: { background: '#18181f', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }
+    });
+  };
+
   // --- LOADING STATE (3-Layer Rotator) ---
   // if (status === "loading") {
   //   return (
@@ -272,18 +318,13 @@ export default function ChatPage() {
 
         {/* Messages List */}
         <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 py-8 space-y-6 scroll-smooth">
-          {/* --- 4. PAGINATION SECTION (Uses custom blackish-white spinner) --- */}
           <div className="min-h-[50px] flex items-center justify-center">
             {isFetchingMore ? (
               <PaginationSpinner />
             ) : (
               hasMore && messages.length >= 20 && (
                 <button 
-                  onClick={() => {
-                    const nextPage = page + 1;
-                    setPage(nextPage);
-                    fetchMessages(nextPage);
-                  }} 
+                  onClick={loadMore} 
                   className="cursor-pointer text-xs text-gray-500 hover:text-indigo-400 py-2 px-4 rounded-full border border-white/5 hover:bg-white/5 transition-all"
                 >
                   Load older messages
@@ -291,30 +332,59 @@ export default function ChatPage() {
               )
             )}
           </div>
+          
           {messages.length === 0 && !isThinking ? (
-            <div className="flex justify-center mt-12 animate-in fade-in slide-in-from-bottom-8 duration-700 ease-[cubic-bezier(0.23,1,0.32,1)]">
-              <div className="text-center max-w-sm group">
-                <div className="w-14 h-14 mx-auto mb-5 rounded-3xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-2xl shadow-indigo-900/40 group-hover:scale-110 group-hover:-translate-y-1 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]">
-                  <Sparkles size={28} className="text-white group-hover:rotate-12 transition-transform duration-500" />
-                </div>
-                <p className="font-['Syne'] text-white text-2xl font-bold tracking-tight">How can I help?</p>
-                <p className="text-gray-500 text-sm mt-2 font-medium">Ask me anything. I'm Mini-GPT.</p>
-              </div>
+            <div className="flex justify-center mt-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
+              {/* ... existing "How can I help" UI ... */}
             </div>
           ) : (
             <div className="space-y-6 pb-24">
               {messages.map((msg, index) => (
-                <div key={index} className={`flex gap-4 max-w-3xl mx-auto ${msg.role === 'assistant' ? 'flex-row-reverse' : ''} animate-in fade-in slide-in-from-bottom-4 duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]`}>
+                <div key={index} className={`flex gap-4 max-w-3xl mx-auto ${msg.role === 'assistant' ? 'flex-row-reverse' : ''} animate-in fade-in slide-in-from-bottom-4 duration-500`}>
                   <div className={`w-8 h-8 rounded-full overflow-hidden flex-shrink-0 mt-1 flex items-center justify-center shadow-md ${msg.role === 'assistant' ? 'bg-gradient-to-br from-indigo-500 to-purple-600 shadow-indigo-500/20' : 'ring-2 ring-white/10'}`}>
                     {msg.role === 'assistant' ? <Sparkles size={14} className="text-white"/> : <img src={session.user.image} referrerPolicy="no-referrer" crossOrigin="anonymous" className="w-full h-full object-cover"/>}
                   </div>
-                  {/* Framer-style Springy Bubbles */}
-                  <div className={`px-5 py-3.5 text-[15px] leading-relaxed max-w-[85%] shadow-sm hover:shadow-md transition-all duration-300 ${
+                  
+                  {/* ADDED 'group' and 'relative' HERE */}
+                  <div className={`group relative px-5 py-3.5 text-[15px] leading-relaxed max-w-[85%] transition-all ${
                     msg.role === 'assistant' 
                       ? 'bg-gradient-to-br from-indigo-600/10 to-purple-600/10 border border-indigo-500/20 rounded-2xl rounded-tr-sm text-gray-200 hover:border-indigo-500/40' 
                       : 'bg-[#17171e] border border-white/5 rounded-2xl rounded-tl-sm text-gray-200 hover:bg-[#1a1a24]'
                   }`}>
-                    {msg.content}
+                    
+                    {/* FLOATING COPY BUTTON */}
+                    <button 
+                      onClick={() => copyToClipboard(msg.content)}
+                      className="absolute -top-3 -right-3 p-2 rounded-xl bg-[#1e1e2e] border border-white/10 text-gray-400 opacity-0 group-hover:opacity-100 transition-all hover:text-white hover:scale-110 shadow-2xl z-10 cursor-pointer"
+                      title="Copy message"
+                    >
+                      <Copy size={14} />
+                    </button>
+
+                    <ReactMarkdown 
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        code({ node, inline, className, children, ...props }) {
+                          const match = /language-(\w+)/.exec(className || '');
+                          return !inline && match ? (
+                            <CodeBlock 
+                              language={match[1]} 
+                              value={String(children).replace(/\n$/, '')} 
+                            />
+                          ) : (
+                            <code className="bg-white/10 px-1.5 py-0.5 rounded text-indigo-300 font-mono text-sm" {...props}>
+                              {children}
+                            </code>
+                          );
+                        },
+                        ul: ({ children }) => <ul className="list-disc ml-4 space-y-1 my-2 text-gray-300">{children}</ul>,
+                        ol: ({ children }) => <ol className="list-decimal ml-4 space-y-1 my-2 text-gray-300">{children}</ol>,
+                        p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
+                        a: ({ children, href }) => <a href={href} target="_blank" className="text-indigo-400 hover:underline font-medium">{children}</a>
+                      }}
+                    >
+                      {msg.content}
+                    </ReactMarkdown>
                   </div>
                 </div>
               ))}
