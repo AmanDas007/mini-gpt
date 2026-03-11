@@ -335,7 +335,13 @@ export default function ChatPage() {
           
           {messages.length === 0 && !isThinking ? (
             <div className="flex justify-center mt-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
-              {/* ... existing "How can I help" UI ... */}
+              <div className="text-center max-w-sm group">
+                <div className="w-14 h-14 mx-auto mb-5 rounded-3xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-2xl shadow-indigo-900/40 group-hover:scale-110 group-hover:-translate-y-1 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]">
+                  <Sparkles size={28} className="text-white group-hover:rotate-12 transition-transform duration-500" />
+                </div>
+                <p className="font-['Syne'] text-white text-2xl font-bold tracking-tight">How can I help?</p>
+                <p className="text-gray-500 text-sm mt-2 font-medium">Ask me anything. I'm Mini-GPT.</p>
+              </div>
             </div>
           ) : (
             <div className="space-y-6 pb-24">

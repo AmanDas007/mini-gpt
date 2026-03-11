@@ -26,6 +26,16 @@ const MessageSchema = new mongoose.Schema(
       required: true,
     },
 
+    fileUrl: {
+      type: String,
+      default: null,
+    },
+    
+    fileName: {
+      type: String,
+      default: null,
+    },
+
     tokenCount: {
       type: Number,
       default: 0,

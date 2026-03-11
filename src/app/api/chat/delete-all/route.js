@@ -86,13 +86,12 @@ export async function POST(req) {
     // return global?.summary || "";
   }
 
-  // await Message.deleteMany({sessionId:session._id});
+  await Message.deleteMany({sessionId:session._id});
 
-  // session.runningSummary="";
-  // session.runningSummaryTokens=0;
-  // session.totalSessionTokensPerDay=0;
+  session.runningSummary="";
+  session.runningSummaryTokens=0;
 
-  // await session.save();
+  await session.save();
 
   return Response.json({ success:true });
 };
