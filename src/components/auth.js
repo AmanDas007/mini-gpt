@@ -16,7 +16,7 @@ export const authOptions = {
         const user = await User.findOne({ email: credentials.email });
         if (!user) throw new Error("Email not found");
 
-        if (!user.password) throw new Error("Use OAuth login");
+        if (!user.password) throw new Error("Please sign in with Google or GitHub to access your account.");
 
         const isMatch = await bcrypt.compare(
           credentials.password,

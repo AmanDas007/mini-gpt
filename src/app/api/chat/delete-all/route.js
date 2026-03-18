@@ -1,5 +1,4 @@
 import connectDB from "@/db/connectDB";
-// import { openai } from "@/lib/openai";
 import { groq } from "@/lib/groq";
 import { countTokens } from "@/lib/tokenizer";
 import { GLOBAL_SUMMARY_LIMIT } from "@/lib/limits";

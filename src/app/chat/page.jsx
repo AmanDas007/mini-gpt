@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Menu, Plus, MessageSquare, User, X, Send, Bot, Sparkles, LogOut, Settings, Copy, Check } from "lucide-react";
+import { Menu, X, Send, Sparkles, Settings, Copy, Check } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -70,6 +70,7 @@ export default function ChatPage() {
   const [hasMore, setHasMore] = useState(true);
   const messagesEndRef = useRef(null);
   const scrollContainerRef = useRef(null);
+  const [limitError, setLimitError] = useState(null);
 
   const fetchMessages = async (pageNum) => {
     if (!session?.user?.id) return;
@@ -78,32 +79,44 @@ export default function ChatPage() {
 
     try {
       const res = await fetch(`/api/chat/get-messages?userId=${session.user.id}&page=${pageNum}`);
-      const data = await res.json();
+      const data = await res.json(); 
       
-      if (data.length < 20) setHasMore(false);
+      const fetchedMessages = data.messages || [];
+
+      // ==========================================
+      // NEW: LOCK THE UI ON RELOAD IF NEEDED
+      // ==========================================
+      if (pageNum === 1) {
+        // Check Daily Limit First (It has higher priority)
+        if (data.isDailyLimited) {
+           setLimitError("⚠️ Daily limit reached. Please try again tomorrow.");
+        } 
+        // If not daily limited, check if they are serving a 60-second Redis timeout
+        else if (data.rateLimitTTL > 0) {
+           setLimitError(`⏳ You are sending messages too fast! Please wait ${data.rateLimitTTL} seconds.`);
+           
+           // Smart Auto-Unlock: Set a timer for the exact remaining seconds to clear the ban!
+           setTimeout(() => {
+             setLimitError(null);
+           }, data.rateLimitTTL * 1000); 
+        }
+      }
+
+      if (fetchedMessages.length < 20) setHasMore(false);
 
       if (pageNum === 1) {
-        setMessages(data);
-        // Instant scroll for the first load
+        setMessages(fetchedMessages);
         setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "instant" }), 100);
       } else {
-        // --- PREVENT SCROLL JUMP ---
         const container = scrollContainerRef.current;
-        
-        // 1. Capture the exact scroll height BEFORE adding new messages
         const scrollHeightBefore = container.scrollHeight;
 
-        // 2. Prepend the new messages
-        setMessages((prev) => [...data, ...prev]);
+        setMessages((prev) => [...fetchedMessages, ...prev]);
 
-        // 3. Use a micro-task to adjust scroll before the browser repaints
-        // This makes the transition invisible to the user
         requestAnimationFrame(() => {
           if (container) {
             const scrollHeightAfter = container.scrollHeight;
-            // 4. Calculate the difference (how much height was added to the top)
             const heightAdded = scrollHeightAfter - scrollHeightBefore;
-            // 5. Instantly move the scroll bar down by that exact amount
             container.scrollTop = heightAdded;
           }
         });
@@ -148,6 +161,7 @@ export default function ChatPage() {
     setMessages((prev) => [...prev, { role: "user", content: currentMessage }]);
     setMessage("");
     setIsThinking(true); // Show the "Thinking..." liquid animation
+    setLimitError(null);
 
     try {
       // 2. Call your backend API
@@ -165,9 +179,16 @@ export default function ChatPage() {
       // Handle Daily Limit from backend
       if (!response.ok) {
         setIsThinking(false);
+        if (response.status === 429) {
+          setLimitError("⏳ You are sending messages too fast! Please wait a minute.");
+          setTimeout(() => {
+            setLimitError(null);
+          }, 10000);
+          return;
+        }
         if (response.status === 403) {
-           setMessages((prev) => [...prev, { role: "assistant", content: "⚠️ Daily limit reached. Please try again tomorrow or upgrade your plan." }]);
-           return;
+          setLimitError("⚠️ Daily limit reached. Please try again tomorrow.");
+          return;
         }
         throw new Error("Failed to fetch response");
       }
@@ -201,6 +222,7 @@ export default function ChatPage() {
     } catch (error) {
       console.error("Chat error:", error);
       setIsThinking(false);
+      toast.error("Network error. Please try again.");
       setMessages((prev) => [...prev, { role: "assistant", content: "Sorry, I encountered an error connecting to the server. Please try again." }]);
     }
   };
@@ -280,15 +302,21 @@ export default function ChatPage() {
           </div>
 
           <div className="flex items-center gap-4 relative">
-            <div className="w-9 h-9 rounded-full overflow-hidden ring-2 ring-white/10 hover:ring-indigo-500/50 hover:scale-105 transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)]">
+          <div className="w-9 h-9 rounded-full overflow-hidden ring-2 ring-white/10 hover:ring-indigo-500/50 hover:scale-105 transition-all duration-300 flex items-center justify-center bg-[#17171e]">
+            {session.user.image ? (
               <img 
                 src={session.user.image} 
                 referrerPolicy="no-referrer" 
-                crossOrigin="anonymous" // Add this too for extra compatibility
+                crossOrigin="anonymous" 
                 alt="User" 
                 className="w-full h-full object-cover"
               />
-            </div>
+            ) : (
+              <div className="w-full h-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm uppercase">
+                {session.user.name?.charAt(0) || session.user.email?.charAt(0) || "U"}
+              </div>
+            )}
+          </div>
             <button 
               onClick={() => setMenuOpen(!menuOpen)} 
               className="cursor-pointer w-9 h-9 flex items-center justify-center rounded-xl text-gray-400 hover:text-white hover:bg-white/10 active:scale-90 transition-all duration-300"
@@ -347,8 +375,30 @@ export default function ChatPage() {
             <div className="space-y-6 pb-24">
               {messages.map((msg, index) => (
                 <div key={index} className={`flex gap-4 max-w-3xl mx-auto ${msg.role === 'assistant' ? 'flex-row-reverse' : ''} animate-in fade-in slide-in-from-bottom-4 duration-500`}>
-                  <div className={`w-8 h-8 rounded-full overflow-hidden flex-shrink-0 mt-1 flex items-center justify-center shadow-md ${msg.role === 'assistant' ? 'bg-gradient-to-br from-indigo-500 to-purple-600 shadow-indigo-500/20' : 'ring-2 ring-white/10'}`}>
-                    {msg.role === 'assistant' ? <Sparkles size={14} className="text-white"/> : <img src={session.user.image} referrerPolicy="no-referrer" crossOrigin="anonymous" className="w-full h-full object-cover"/>}
+                  <div className={`w-8 h-8 rounded-full overflow-hidden flex-shrink-0 mt-1 flex items-center justify-center shadow-md ${
+                    msg.role === 'assistant' 
+                      ? 'bg-gradient-to-br from-indigo-500 to-purple-600 shadow-indigo-500/20' 
+                      : 'ring-2 ring-white/10 bg-[#17171e]'
+                  }`}>
+                    {msg.role === 'assistant' ? (
+                      <Sparkles size={14} className="text-white" />
+                    ) : (
+                      // Check if the user has a Google/GitHub image
+                      session.user.image ? (
+                        <img 
+                          src={session.user.image} 
+                          referrerPolicy="no-referrer" 
+                          crossOrigin="anonymous" 
+                          className="w-full h-full object-cover"
+                          alt="User"
+                        />
+                      ) : (
+                        // Fallback: Show the first letter of their name or email
+                        <span className="text-xs font-bold text-indigo-400 uppercase">
+                          {session.user.name?.charAt(0) || session.user.email?.charAt(0) || "U"}
+                        </span>
+                      )
+                    )}
                   </div>
                   
                   {/* ADDED 'group' and 'relative' HERE */}
@@ -416,23 +466,36 @@ export default function ChatPage() {
         {/* Framer-style Floating Input Area */}
         <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-[#0d0d0f] via-[#0d0d0f] to-transparent pt-12 pb-6 px-4">
           <div className="max-w-3xl mx-auto relative group">
-            {/* Animated Glow Behind Input */}
-            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-3xl blur opacity-0 group-focus-within:opacity-20 transition duration-700 ease-[cubic-bezier(0.23,1,0.32,1)]"></div>
             
-            <div className="relative flex items-end gap-3 bg-[#17171e]/90 backdrop-blur-xl border border-white/10 rounded-2xl p-2 shadow-2xl group-focus-within:-translate-y-1 group-focus-within:border-indigo-500/30 group-focus-within:shadow-indigo-500/10 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]">
+            {/* --- NEW LIMIT ERROR BANNER --- */}
+            {limitError && (
+              <div className="mb-3 mx-2 p-3 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-center justify-between text-rose-400 text-sm animate-in fade-in slide-in-from-bottom-2 backdrop-blur-xl shadow-lg">
+                <span className="font-medium">{limitError}</span>
+              </div>
+            )}
+
+            {/* Animated Glow Behind Input */}
+            <div className={`absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-3xl blur transition duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] ${limitError ? 'opacity-0' : 'opacity-0 group-focus-within:opacity-20'}`}></div>
+            
+            <div className={`relative flex items-end gap-3 backdrop-blur-xl border rounded-2xl p-2 shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${
+                limitError 
+                  ? 'bg-[#17171e]/50 border-rose-500/30 shadow-none' 
+                  : 'bg-[#17171e]/90 border-white/10 group-focus-within:-translate-y-1 group-focus-within:border-indigo-500/30 group-focus-within:shadow-indigo-500/10'
+              }`}
+            >
               <textarea
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), handleSend())}
-                disabled={isThinking}
+                disabled={isThinking || !!limitError}
                 rows={1}
-                className="flex-1 bg-transparent text-[15px] text-gray-200 placeholder-gray-500 resize-none leading-relaxed focus:outline-none max-h-40 disabled:opacity-50 py-3 pl-4"
-                placeholder="Message Mini-GPT..."
+                className="flex-1 bg-transparent text-[15px] text-gray-200 placeholder-gray-500 resize-none leading-relaxed focus:outline-none max-h-40 disabled:opacity-40 py-3 pl-4 transition-opacity"
+                placeholder={limitError ? "Input disabled..." : "Message Mini-GPT..."}
               />
               <button
                 onClick={handleSend}
-                disabled={!message.trim() || isThinking}
-                className="w-10 h-10 mb-1 flex-shrink-0 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-white/5 disabled:text-gray-500 flex items-center justify-center active:scale-90 hover:scale-105 transition-all duration-300 shadow-md shadow-indigo-900/40 text-white"
+                disabled={!message.trim() || isThinking || !!limitError}
+                className="w-10 h-10 mb-1 flex-shrink-0 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-white/5 disabled:text-gray-600 flex items-center justify-center active:scale-90 hover:scale-105 transition-all duration-300 shadow-md shadow-indigo-900/40 text-white cursor-pointer"
               >
                 <Send size={16} className="ml-0.5" />
               </button>

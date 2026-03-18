@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import connectDB from "@/db/connectDB";
 import { groq } from "@/lib/groq";
+import { redis } from "@/lib/redis";
 import { countTokens } from "@/lib/tokenizer";
 import {
   MODEL_CONTEXT_LIMIT,
@@ -15,15 +16,37 @@ import ChatSession from "@/models/ChatSession";
 import GlobalMemory from "@/models/GlobalMemory";
 import User from "@/models/User";
 
+
 export async function POST(req) {
-  await connectDB();
 
   const { message, userId } = await req.json();
-  // console.log(userId);
+
+  // redis rate limiting 
+  // Max 10 messages per 60 seconds.
+  const rateLimitKey = `rate_limit:chat:${userId}`;
+  
+  try {
+    const requests = await redis.incr(rateLimitKey);
+    
+    // If this is the first request in the window, set the expiry to 60 seconds
+    if (requests === 1) {
+      await redis.expire(rateLimitKey, 60); 
+    }
+
+    if (requests > 10) {
+      return NextResponse.json(
+        { message: "Rate limit exceeded. Please wait a minute." },
+        { status: 429 } // 429: Too Many Requests
+      );
+    }
+  } catch (error) {
+    console.error("Redis Rate Limit Error:", error);
+    // If Redis goes down, we shouldn't crash the whole app. We just log it and let them pass.
+  }
+  
+  await connectDB();
 
   const user = await User.findById(userId);
-
-  // console.log("Coming Coming Coming")
 
   let session = await ChatSession.findOne({ userId });
 

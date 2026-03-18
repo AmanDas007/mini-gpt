@@ -13,8 +13,6 @@ export default function SettingsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
-  const [theme, setTheme] = useState("dark");
-  const [compact, setCompact] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -108,16 +106,21 @@ export default function SettingsPage() {
           
           {/* Profile card - Animated In */}
           <div className="flex items-center gap-4 bg-[#17171e]/80 backdrop-blur-md border border-white/5 hover:border-white/10 rounded-3xl px-5 py-5 shadow-lg hover:shadow-indigo-500/5 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] animate-in fade-in slide-in-from-bottom-4">
-            <div className="w-14 h-14 rounded-full overflow-hidden ring-2 ring-indigo-500/30 hover:ring-indigo-500/60 hover:scale-105 transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)]">
-              {/* <img src={session.user?.image} className="w-full h-full object-cover"/> */}
+          <div className="w-14 h-14 rounded-full overflow-hidden ring-2 ring-indigo-500/30 hover:ring-indigo-500/60 hover:scale-105 transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] bg-[#17171e] flex items-center justify-center">
+            {session?.user?.image ? (
               <img 
                 src={session.user.image} 
                 referrerPolicy="no-referrer" 
-                crossOrigin="anonymous" // Add this too for extra compatibility
+                crossOrigin="anonymous" 
                 className="w-full h-full object-cover" 
                 alt="Profile"
               />
-            </div>
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-indigo-600/20 to-purple-600/20 flex items-center justify-center text-indigo-400 text-xl font-bold uppercase tracking-wider">
+                {session?.user?.name?.charAt(0) || session?.user?.email?.charAt(0) || "U"}
+              </div>
+            )}
+          </div>
             <div className="flex-1">
               <p className="text-white font-bold text-base tracking-wide">{session.user.name}</p>
               <p className="text-indigo-400 text-sm mt-0.5 font-medium">{session.user.email}</p>
@@ -174,49 +177,6 @@ export default function SettingsPage() {
               )}
             </div>
           </div>
-
-          {/* Theme Section */}
-          {/* <div className="animate-in fade-in slide-in-from-bottom-8 duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] delay-150 fill-mode-both">
-            <p className="text-gray-500 text-xs uppercase tracking-widest font-bold px-2 mb-3">Preferences</p>
-            <div className="bg-[#17171e] border border-white/5 rounded-3xl overflow-hidden divide-y divide-white/5 shadow-sm">
-              <div className="px-5 py-5">
-                <p className="text-gray-200 text-sm font-semibold mb-4">Appearance</p>
-                <div className="flex gap-3">
-                  {[
-                    { id: 'dark', icon: Moon, label: 'Dark' },
-                    { id: 'light', icon: Sun, label: 'Light' },
-                    { id: 'system', icon: Monitor, label: 'System' }
-                  ].map((t) => (
-                    <button 
-                      key={t.id}
-                      onClick={() => setTheme(t.id)}
-                      className={`flex-1 flex flex-col items-center gap-2 p-3.5 rounded-2xl border-2 active:scale-95 transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] ${
-                        theme === t.id 
-                          ? 'border-indigo-500 bg-indigo-500/10 shadow-lg shadow-indigo-500/10' 
-                          : 'border-white/5 hover:border-white/15 bg-white/5'
-                      }`}
-                    >
-                      <t.icon size={20} className={theme === t.id ? 'text-indigo-400' : 'text-gray-400'} />
-                      <span className={`text-xs font-semibold ${theme === t.id ? 'text-indigo-400' : 'text-gray-500'}`}>{t.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between px-5 py-5 hover:bg-white/[0.02] transition-colors">
-                <div>
-                  <p className="text-gray-200 text-sm font-semibold">Compact Mode</p>
-                  <p className="text-gray-500 text-xs mt-0.5">Reduce spacing in chat interface</p>
-                </div>
-                <button 
-                  onClick={() => setCompact(!compact)}
-                  className={`w-12 h-6 rounded-full relative transition-colors duration-300 active:scale-95 ${compact ? 'bg-indigo-600' : 'bg-[#2a2a35] border border-white/5'}`}
-                >
-                  <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow-md transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${compact ? 'translate-x-6' : 'translate-x-0'}`}></div>
-                </button>
-              </div>
-            </div>
-          </div> */}
 
           {/* Danger Zone */}
           <div className="animate-in fade-in slide-in-from-bottom-10 duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] delay-200 fill-mode-both">

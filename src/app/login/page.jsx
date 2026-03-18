@@ -20,6 +20,14 @@ export default function SigninPage() {
   // 🔐 Credentials Login
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!email.trim() || !password.trim()) return;
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError("Please enter a valid email address (e.g., name@example.com)");
+      return; 
+    }
+
     setLoading(true);
     setError(null);
     setMessage(null);
