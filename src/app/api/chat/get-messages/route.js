@@ -15,7 +15,7 @@ export async function GET(req) {
     // ==========================================
     // 1. CHECK REDIS FOR 60-SECOND SPAM LIMIT
     // ==========================================
-    const rateLimitKey = `rate_limit:chat:${userId}`;
+    const rateLimitKey = `${process.env.REDIS_NAMESPACE}:rate_limit:chat:${userId}`;
     const requests = await redis.get(rateLimitKey);
     let rateLimitTTL = 0;
 
