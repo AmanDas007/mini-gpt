@@ -23,7 +23,7 @@ export async function POST(req) {
 
   // redis rate limiting 
   // Max 10 messages per 60 seconds.
-  const rateLimitKey = `rate_limit:chat:${userId}`;
+  const rateLimitKey = `${process.env.REDIS_NAMESPACE}:rate_limit:chat:${userId}`;
   
   try {
     const requests = await redis.incr(rateLimitKey);
