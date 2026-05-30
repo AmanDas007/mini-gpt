@@ -5,12 +5,18 @@ import { GLOBAL_SUMMARY_LIMIT } from "@/lib/limits";
 import Message from "@/models/Message";
 import ChatSession from "@/models/ChatSession";
 import GlobalMemory from "@/models/GlobalMemory";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/components/auth";
 
 export async function POST(req) {
 
-  await connectDB();
+  const serverSession = await getServerSession(authOptions);
+  if (!serverSession || !serverSession.user) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
 
-  const { userId } = await req.json();
+  await connectDB();
+  const userId = serverSession.user.id;
 
   const session = await ChatSession.findOne({ userId });
 

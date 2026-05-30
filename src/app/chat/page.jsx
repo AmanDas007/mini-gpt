@@ -78,7 +78,7 @@ export default function ChatPage() {
     if (pageNum > 1) setIsFetchingMore(true);
 
     try {
-      const res = await fetch(`/api/chat/get-messages?userId=${session.user.id}&page=${pageNum}`);
+      const res = await fetch(`/api/chat/get-messages?page=${pageNum}`);
       const data = await res.json(); 
       
       const fetchedMessages = data.messages || [];
@@ -137,10 +137,10 @@ export default function ChatPage() {
     }
   }, [status, router]);
 
-  // Auto-scroll
+  // Auto-scroll (FIX: Switched 'smooth' to 'auto' to stop continuous browser layout thrashing)
   useEffect(() => {
     if (!isLoadingInitial && page === 1 && !isFetchingMore) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
     }
   }, [messages, isThinking]);
 
@@ -172,7 +172,6 @@ export default function ChatPage() {
         },
         body: JSON.stringify({
           message: currentMessage,
-          userId: session.user.id,
         }),
       });
 
@@ -202,6 +201,9 @@ export default function ChatPage() {
       const decoder = new TextDecoder();
       let done = false;
       let text = "";
+      
+      // FIX: Added a throttling timer to prevent ReactMarkdown rendering lag
+      let lastRenderTime = 0;
 
       while (!done) {
         const { value, done: readerDone } = await reader.read();
@@ -210,13 +212,17 @@ export default function ChatPage() {
         if (value) {
           const chunk = decoder.decode(value, { stream: true });
           text += chunk;
-          
-          // Update the very last message in the array with the new text chunk
+        }
+
+        // Only trigger state update ~30 frames per second (every 35ms) or when fully done.
+        const now = Date.now();
+        if (now - lastRenderTime > 35 || done) {
           setMessages((prev) => {
             const updatedMessages = [...prev];
             updatedMessages[updatedMessages.length - 1].content = text;
             return updatedMessages;
           });
+          lastRenderTime = now;
         }
       }
     } catch (error) {
@@ -235,7 +241,6 @@ export default function ChatPage() {
       const res = await fetch("/api/chat/delete-all", {
         method: "POST", // Changed from GET to match your backend
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: session.user.id }),
       });
   
       if (!res.ok) throw new Error("Failed to clear chats");
@@ -267,11 +272,6 @@ export default function ChatPage() {
   };
 
   // --- LOADING STATE (3-Layer Rotator) ---
-  // if (status === "loading") {
-  //   return (
-  //     <Spinner />
-  //   );
-  // }
   if (status === "loading" || (status === "authenticated" && isLoadingInitial)) {
     return (
       <div className="h-screen bg-[#0d0d0f] flex items-center justify-center">
@@ -279,11 +279,6 @@ export default function ChatPage() {
       </div>
     );
   }
-
-  // Prevent flash of UI if unauthenticated (wait for redirect)
-  // if (status === "unauthenticated") {
-  //   return null; 
-  // }
 
   // --- MAIN AUTHENTICATED UI (Untouched) ---
   return (
@@ -326,7 +321,14 @@ export default function ChatPage() {
             
             {/* Framer-style Popover Menu */}
             {menuOpen && (
-              <div className="absolute right-0 top-14 w-52 bg-[#18181f]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] overflow-hidden z-50 animate-in fade-in zoom-in-[0.95] slide-in-from-top-2 origin-top-right duration-200 ease-out p-1">
+              <div className="absolute right-0 top-14 w-52 bg-[#18181f]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] overflow-hidden z-50 p-1">
+                
+                {/* NEW DOCUMENTS ROUTE PORTAL LINK */}
+                <Link href="/documents" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-300 hover:bg-indigo-500/10 hover:text-indigo-300 active:scale-[0.98] transition-all">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg> 
+                  Documents (PDFs)
+                </Link>
+                
                 <Link href="/settings" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-300 hover:bg-indigo-500/10 hover:text-indigo-300 active:scale-[0.98] transition-all">
                   <Settings size={16} /> Go to Settings
                 </Link>

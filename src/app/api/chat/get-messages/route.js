@@ -2,11 +2,20 @@ import connectDB from "@/db/connectDB";
 import Message from "@/models/Message";
 import ChatSession from "@/models/ChatSession";
 import { redis } from "@/lib/redis";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/components/auth";
 
 export async function GET(req) {
+
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
   await connectDB();
+  const userId = session.user.id;
   const { searchParams } = new URL(req.url);
-  const userId = searchParams.get("userId");
+  
   const page = parseInt(searchParams.get("page")) || 1;
   const limit = 20; // Number of messages per fetch
   const skip = (page - 1) * limit;
